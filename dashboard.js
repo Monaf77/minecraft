@@ -262,7 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // This expects a local backend serving at the same origin with /auth/github/login
         try {
             addConsoleLog('تحويل إلى GitHub لتفويض الوصول...', 'info');
-            window.location.assign('/auth/github/login');
+            const base = (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) ? window.APP_CONFIG.BACKEND_BASE_URL : '';
+            const target = base ? `${base}/auth/github/login` : '/auth/github/login';
+            window.location.assign(target);
             return;
         } catch (e) {
             // Fallback to token prompt if backend not available
