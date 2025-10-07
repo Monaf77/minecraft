@@ -1,0 +1,9 @@
+{
+  "name": "iraq",
+  "image": "mcr.microsoft.com/devcontainers/base:jammy",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": { "version": "17" }
+  },
+  "forwardPorts": [25565],
+  "postCreateCommand": "bash scripts/init-server.sh"
+}
