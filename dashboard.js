@@ -52,8 +52,27 @@ navItems.forEach(item => {
 });
 
 // Server control buttons
-serverStartBtn?.addEventListener('click', () => {
-    // Simulate server start
+serverStartBtn?.addEventListener('click', async () => {
+    // Prefer backend start if configured, else fallback to mock
+    const base = (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) || localStorage.getItem('backendBaseUrl');
+    const ghToken = localStorage.getItem('ghToken')?.trim() || document.getElementById('ghToken')?.value?.trim();
+    const name = document.getElementById('existingServers')?.value || document.getElementById('srvName')?.value?.trim();
+    if (base && ghToken && name) {
+        try {
+            addConsoleLog(`تشغيل السيرفر ${name} عبر GitHub...`, 'info');
+            const res = await fetch(`${base}/api/servers/${encodeURIComponent(name)}/start`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: ghToken })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+            addConsoleLog('تم ضبط START=true في .env للمستودع.', 'success');
+            updateServerStatus('online');
+            return;
+        } catch (e) {
+            addConsoleLog(`تعذر تشغيل السيرفر عبر API: ${e.message}. سيجري تشغيل محاكى.`, 'warning');
+        }
+    }
+    // Fallback simulated start
     addConsoleLog('Starting Minecraft server...', 'info');
     setTimeout(() => {
         addConsoleLog('Loading properties', 'info');
@@ -68,8 +87,26 @@ serverStartBtn?.addEventListener('click', () => {
     }, 1000);
 });
 
-serverStopBtn?.addEventListener('click', () => {
-    // Simulate server stop
+serverStopBtn?.addEventListener('click', async () => {
+    const base = (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) || localStorage.getItem('backendBaseUrl');
+    const ghToken = localStorage.getItem('ghToken')?.trim() || document.getElementById('ghToken')?.value?.trim();
+    const name = document.getElementById('existingServers')?.value || document.getElementById('srvName')?.value?.trim();
+    if (base && ghToken && name) {
+        try {
+            addConsoleLog(`إيقاف السيرفر ${name} عبر GitHub...`, 'info');
+            const res = await fetch(`${base}/api/servers/${encodeURIComponent(name)}/stop`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: ghToken })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+            addConsoleLog('تم ضبط START=false في .env للمستودع.', 'success');
+            updateServerStatus('offline');
+            return;
+        } catch (e) {
+            addConsoleLog(`تعذر إيقاف السيرفر عبر API: ${e.message}. سيجري إيقاف محاكى.`, 'warning');
+        }
+    }
+    // Fallback simulated stop
     addConsoleLog('Stopping the server...', 'warning');
     setTimeout(() => {
         addConsoleLog('Stopping server', 'warning');
@@ -257,13 +294,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Helper: resolve backend base URL automatically
+    function getBackendBase() {
+        if (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) return window.APP_CONFIG.BACKEND_BASE_URL;
+        return window.location.origin;
+    }
+
     ghConnectBtn?.addEventListener('click', async () => {
         // If backend OAuth is available, use redirect flow.
         // This expects a local backend serving at the same origin with /auth/github/login
         try {
             addConsoleLog('تحويل إلى GitHub لتفويض الوصول...', 'info');
-            const base = (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) ? window.APP_CONFIG.BACKEND_BASE_URL : '';
-            const target = base ? `${base}/auth/github/login` : '/auth/github/login';
+            const base = getBackendBase();
+            const target = `${base}/auth/github/login`;
             window.location.assign(target);
             return;
         } catch (e) {
@@ -331,10 +374,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Wire up Server Management actions with optional GitHub integration
     document.getElementById('createServer')?.addEventListener('click', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('srvName')?.value || 'My Server';
+        const name = document.getElementById('srvName')?.value?.trim() || 'MyServer';
         const version = document.getElementById('srvVersion')?.value || 'latest';
         const software = document.getElementById('srvSoftware')?.value || 'Vanilla';
         const ghToken = (localStorage.getItem('ghToken')?.trim()) || (document.getElementById('ghToken')?.value?.trim());
+        const base = getBackendBase();
         const btn = document.getElementById('createServer');
         const out = document.getElementById('consoleOutput');
 
@@ -367,58 +411,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 700);
         };
 
-        // If GitHub token provided, create repo named after server and block duplicates
-        if (ghToken) {
-            try {
-                addConsoleLog('التحقق من حساب GitHub...', 'info');
-                const uRes = await fetch('https://api.github.com/user', {
-                    headers: { Authorization: `Bearer ${ghToken}` }
-                });
-                if (!uRes.ok) throw new Error('تعذر الوصول إلى حساب GitHub');
-                const user = await uRes.json();
-                const login = user.login;
-                addConsoleLog(`المستخدم: ${login}`, 'info');
-
-                // Try to create repo directly; if 422, treat as exists
-                addConsoleLog(`إنشاء مستودع GitHub: ${name}...`, 'info');
-                const cRes = await fetch('https://api.github.com/user/repos', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${ghToken}`,
-                        'Accept': 'application/vnd.github+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name, auto_init: true, private: true, description: `Minecraft server ${name} (${software} ${version})` })
-                });
-                if (cRes.status === 422) {
-                    addConsoleLog('الاسم موجود مسبقًا في GitHub. يرجى تغيير الاسم.', 'error');
-                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
-                    return;
-                }
-                if (!cRes.ok) {
-                    const t = await cRes.text();
-                    addConsoleLog(`فشل إنشاء المستودع: ${t}`, 'error');
-                    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
-                    return;
-                }
-                addConsoleLog('تم إنشاء المستودع بنجاح على GitHub.', 'success');
-
-                // Optionally add to existingServers list
-                const sel = document.getElementById('existingServers');
-                if (sel) {
-                    const opt = document.createElement('option');
-                    opt.textContent = `${name} - ${software}`;
-                    opt.value = name;
-                    sel.appendChild(opt);
-                }
-
-                proceedInstall();
-            } catch (e) {
-                addConsoleLog(`خطأ GitHub: ${e.message}`, 'error');
-                if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
+        // Use backend API if available
+        if (!ghToken) {
+            addConsoleLog('GitHub غير مربوط. الرجاء ربط GitHub أولاً.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
+            return;
+        }
+        if (!base) {
+            addConsoleLog('لم يتم ضبط رابط الباك-إند. الرجاء إدخاله وحفظه.', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
+            return;
+        }
+        try {
+            addConsoleLog('إرسال طلب إنشاء للمخدم...', 'info');
+            const res = await fetch(`${base}/api/servers`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, version, software, token: ghToken })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+            addConsoleLog(`تم إنشاء المستودع ${data.owner}/${data.repo} ورفع الملفات الأولية.`, 'success');
+            const sel = document.getElementById('existingServers');
+            if (sel && ![...sel.options].some(o => o.value === name)) {
+                const opt = document.createElement('option');
+                opt.textContent = `${name} - ${software}`;
+                opt.value = name;
+                sel.appendChild(opt);
             }
-        } else {
             proceedInstall();
+        } catch (e) {
+            addConsoleLog(`فشل إنشاء السيرفر: ${e.message}`, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
         }
     });
 
