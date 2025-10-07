@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MONAF - لوحة تحكم سيرفر ماين كرافت</title>
+    <meta name="description" content="لوحة تحكم متكاملة لإدارة سيرفر ماين كرافت الخاص بك">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+<body class="dashboard">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="fas fa-server"></i>
+            <h2>MONAF MC</h2>
+        </div>
+        <nav>
+            <ul>
+                <li class="active" data-section="dashboard">
+                    <a href="#">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>لوحة التحكم</span>
+                    </a>
+                </li>
+                <li data-section="server">
+                    <a href="#">
+                        <i class="fas fa-server"></i>
+                        <span>إدارة السيرفر</span>
+                    </a>
+                </li>
+                <li data-section="players">
+                    <a href="#">
+                        <i class="fas fa-users"></i>
+                        <span>اللاعبون</span>
+                    </a>
+                </li>
+                <li data-section="versions">
+                    <a href="#">
+                        <i class="fas fa-code-branch"></i>
+                        <span>إصدارات اللعبة</span>
+                    </a>
+                </li>
+                <li data-section="settings">
+                    <a href="#">
+                        <i class="fas fa-cog"></i>
+                        <span>الإعدادات</span>
+                    </a>
+                </li>
+                <li id="logoutBtn">
+                    <a href="#">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>تسجيل الخروج</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <main class="main-content">
+        <div class="content-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <button class="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>لوحة تحكم السيرفر</h1>
+            </div>
+            <div class="user-info">
+                <div class="notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge">3</span>
+                </div>
+                <div class="user">
+                    <span id="userEmail"></span>
+                    <div class="avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Dashboard Section (default) -->
+        <div data-section-content="dashboard">
+        <!-- Top Toolbar -->
+        <section class="top-toolbar">
+            <h2>التحكم السريع</h2>
+            <div class="server-controls">
+                <button class="btn btn-danger" id="stopServer">
+                    <i class="fas fa-power-off"></i> إيقاف
+                </button>
+                <button class="btn btn-warning" id="restartServer">
+                    <i class="fas fa-redo"></i> إعادة تشغيل
+                </button>
+                <button class="btn btn-primary" id="startServer">
+                    <i class="fas fa-play"></i> تشغيل
+                </button>
+            </div>
+        </section>
+
+        <div class="overview-grid">
+        <!-- Server Status Section -->
+        <section class="server-status">
+            <div class="section-header">
+                <h2>حالة السيرفر</h2>
+            </div>
+
+            <div class="server-info-grid">
+                <!-- Server Status Card -->
+                <div class="info-card status">
+                    <div class="card-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>حالة السيرفر</h3>
+                        <div class="status-indicator online">
+                            <span class="pulse"></span>
+                            <span>يعمل</span>
+                        </div>
+                        <p class="uptime">مدة التشغيل: <span>2d 5h 12m</span></p>
+                    </div>
+                </div>
+
+                <!-- Server IP Card -->
+                <div class="info-card ip">
+                    <div class="card-icon">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>عنوان السيرفر</h3>
+                        <div class="ip-address">
+                            <span id="serverIp">192.168.0.200:25565</span>
+                            <button class="copy-btn" data-clipboard-target="#serverIp">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                        <p class="server-version">إصدار: <span>1.20.1</span></p>
+                    </div>
+                </div>
+
+                <!-- Players Online -->
+                <div class="info-card players">
+                    <div class="card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>اللاعبون المتصلون</h3>
+                        <div class="player-count">
+                            <span class="current">12</span>
+                            <span class="separator">/</span>
+                            <span class="max">50</span>
+                        </div>
+                        <p class="player-list-toggle">
+                            <a href="#" id="showPlayers">عرض قائمة اللاعبين</a>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Performance -->
+                <div class="info-card performance">
+                    <div class="card-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>أداء السيرفر</h3>
+                        <div class="performance-metrics">
+                            <div class="metric">
+                                <span class="label">الذاكرة</span>
+                                <div class="progress-bar">
+                                    <div class="progress" style="width: 65%"></div>
+                                    <span>65%</span>
+                                </div>
+                            </div>
+                            <div class="metric">
+                                <span class="label">وحدة المعالجة</span>
+                                <div class="progress-bar">
+                                    <div class="progress cpu" style="width: 42%"></div>
+                                    <span>42%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="quick-actions">
+            <h2>إجراءات سريعة</h2>
+            <div class="action-buttons">
+                <button class="action-btn">
+                    <i class="fas fa-terminal"></i>
+                    <span>لوحة التحكم</span>
+                </button>
+                <button class="action-btn">
+                    <i class="fas fa-file-upload"></i>
+                    <span>رفع ملف</span>
+                </button>
+                <button class="action-btn">
+                    <i class="fas fa-database"></i>
+                    <span>النسخ الاحتياطي</span>
+                </button>
+                <button class="action-btn">
+                    <i class="fas fa-plug"></i>
+                    <span>الإضافات</span>
+                </button>
+            </div>
+        </section>
+        </div>
+
+        <!-- Server Console -->
+        <section class="server-console">
+            <div class="console-header">
+                <h2>وحدة التحكم</h2>
+                <div class="console-controls">
+                    <button class="btn btn-sm"><i class="fas fa-sync"></i></button>
+                    <button class="btn btn-sm"><i class="fas fa-trash"></i></button>
+                    <button class="btn btn-sm"><i class="fas fa-expand"></i></button>
+                </div>
+            </div>
+            <div class="console-output" id="consoleOutput">
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Starting minecraft server version 1.20.1</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Loading properties</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Default game type: SURVIVAL</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Generating keypair</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Starting Minecraft server on *:25565</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Using default channel type</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Preparing level "world"</div>
+                <div class="log-entry">[12:30:45] [Server thread/INFO]: Preparing start region for dimension minecraft:overworld</div>
+            </div>
+            <div class="console-input">
+                <span class="prompt">></span>
+                <input type="text" placeholder="أدخل الأمر..." id="consoleInput">
+                <button class="btn btn-primary btn-sm" id="sendCommand">إرسال</button>
+            </section>
+        </div>
+
+        <!-- Server Management Section -->
+        <section class="server-management" data-section-content="server" style="display:none">
+            <div class="section-header">
+                <h2>إدارة السيرفر</h2>
+            </div>
+
+            <div class="section-toolbar gh-connect">
+                <button class="btn btn-primary btn-sm" id="githubConnect"><i class="fab fa-github"></i> ربط GitHub</button>
+                <button class="btn btn-sm" id="githubDisconnect" style="display:none"><i class="fas fa-sign-out-alt"></i> فصل</button>
+                <span id="githubStatus" class="gh-status"></span>
+            </div>
+
+            <div class="server-manage-grid">
+                <!-- Create Server Card -->
+                <div class="section-card">
+                    <h3>إنشاء سيرفر جديد</h3>
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <label for="srvName">اسم السيرفر</label>
+                            <input id="srvName" type="text" placeholder="MONAF Survival" />
+                        </div>
+                        <div class="form-row">
+                            <label for="srvVersion">إصدار ماينكرافت</label>
+                            <select id="srvVersion">
+                                <option>1.20.1</option>
+                                <option>1.19.4</option>
+                                <option>1.18.2</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="srvSoftware">المنصة</label>
+                            <select id="srvSoftware">
+                                <option>Vanilla</option>
+                                <option>Paper</option>
+                                <option>Spigot</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="ghToken">GitHub Token (اختياري)</label>
+                            <input id="ghToken" type="password" placeholder="ghp_..." />
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary" id="createServer"><i class="fas fa-plus"></i> إنشاء</button>
+                    </div>
+                </div>
+
+                <!-- Delete Server Card -->
+                <div class="section-card">
+                    <h3>حذف سيرفر موجود</h3>
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <label for="existingServers">اختر السيرفر</label>
+                            <select id="existingServers">
+                                <option>Server #1 - Survival</option>
+                                <option>Server #2 - Creative</option>
+                            </select>
+                        </div>
+                        <div class="danger-note">تنبيه: لا يمكن التراجع بعد الحذف.</div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-danger" id="deleteServer"><i class="fas fa-trash"></i> حذف</button>
+                    </div>
+                </div>
+
+                <!-- World Settings Card -->
+                <div class="section-card">
+                    <h3>إعدادات عالم السيرفر</h3>
+                    <div class="form-grid">
+                        <div class="form-row">
+                            <label for="worldSeed">Seed</label>
+                            <input id="worldSeed" type="text" placeholder="اختياري" />
+                        </div>
+                        <div class="form-row">
+                            <label for="difficulty">الصعوبة</label>
+                            <select id="difficulty">
+                                <option value="peaceful">Peaceful</option>
+                                <option value="easy">Easy</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="gamemode">نمط اللعب</label>
+                            <select id="gamemode">
+                                <option value="survival" selected>Survival</option>
+                                <option value="creative">Creative</option>
+                                <option value="adventure">Adventure</option>
+                                <option value="spectator">Spectator</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label for="worldType">نوع العالم</label>
+                            <select id="worldType">
+                                <option value="default">Default</option>
+                                <option value="flat">Flat</option>
+                                <option value="large_biomes">Large Biomes</option>
+                                <option value="amplified">Amplified</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-warning" id="saveWorldSettings"><i class="fas fa-save"></i> حفظ الإعدادات</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        </div>
+    </main>
+    <script src="dashboard.js"></script>
+</body>
+</html>

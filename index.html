@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MONAF - تسجيل الدخول</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+    <div class="container">
+        <div class="login-box">
+            <div class="logo">
+                <h1>MONAF</h1>
+                <p>نظام إدارة المحتوى</p>
+            </div>
+            
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <input type="email" id="email" required>
+                    <label for="email">البريد الإلكتروني</label>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" id="password" required>
+                    <label for="password">كلمة المرور</label>
+                </div>
+                
+                <button type="submit" class="btn-login">تسجيل الدخول</button>
+                
+                <div id="error-message" class="error-message"></div>
+            </form>
+            
+            <div class="footer">
+                <p>© 2024 MONAF. جميع الحقوق محفوظة</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
