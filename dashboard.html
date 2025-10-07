@@ -39,6 +39,12 @@
                         <span>اللاعبون</span>
                     </a>
                 </li>
+                <li data-section="myservers">
+                    <a href="#">
+                        <i class="fas fa-folder-open"></i>
+                        <span>سيرفراتي</span>
+                    </a>
+                </li>
                 <li data-section="versions">
                     <a href="#">
                         <i class="fas fa-code-branch"></i>
@@ -100,6 +106,26 @@
                 <button class="btn btn-primary" id="startServer">
                     <i class="fas fa-play"></i> تشغيل
                 </button>
+            </div>
+        </section>
+
+        <!-- My Servers Section -->
+        <section class="my-servers" data-section-content="myservers" style="display:none">
+            <div class="section-header">
+                <h2>سيرفراتي</h2>
+                <div class="section-toolbar">
+                    <button class="btn btn-sm" id="refreshMyRepos"><i class="fas fa-sync"></i> تحديث</button>
+                </div>
+            </div>
+            <div class="myservers-grid" style="display:grid; grid-template-columns: 320px 1fr; gap:16px; align-items:start;">
+                <div class="section-card">
+                    <h3>المستودعات</h3>
+                    <ul id="myRepos" class="repo-list" style="list-style:none; padding:0; margin:0; max-height:420px; overflow:auto"></ul>
+                </div>
+                <div class="section-card">
+                    <h3 id="repoTitle">ملفات المستودع</h3>
+                    <div id="repoFiles" class="file-list" style="max-height:420px; overflow:auto; font-family:monospace"></div>
+                </div>
             </div>
         </section>
 

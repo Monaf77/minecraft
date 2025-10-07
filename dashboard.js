@@ -30,6 +30,90 @@ function showSection(key) {
             sec.style.display = 'none';
         }
     });
+
+    // ============ My Servers (سيرفراتي) ============
+    async function fetchMyRepos() {
+        try {
+            const base = (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) || window.location.origin;
+            const res = await fetch(`${base}/api/my/repos`, { credentials: 'include' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+            return data;
+        } catch (e) {
+            addConsoleLog(`فشل جلب المستودعات: ${e.message}`, 'error');
+            return [];
+        }
+    }
+
+    async function fetchRepoContents(name, path = '') {
+        try {
+            const base = (window.APP_CONFIG && window.APP_CONFIG.BACKEND_BASE_URL) || window.location.origin;
+            const url = new URL(`${base}/api/repos/${encodeURIComponent(name)}/contents`);
+            if (path) url.searchParams.set('path', path);
+            const res = await fetch(url.toString(), { credentials: 'include' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+            return Array.isArray(data) ? data : [data];
+        } catch (e) {
+            addConsoleLog(`فشل جلب الملفات: ${e.message}`, 'error');
+            return [];
+        }
+    }
+
+    function renderRepoList(repos) {
+        const ul = document.getElementById('myRepos');
+        if (!ul) return;
+        ul.innerHTML = '';
+        repos.sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at));
+        repos.forEach(r => {
+            const li = document.createElement('li');
+            li.innerHTML = `<button class="linklike" data-repo="${r.name}"><i class="fas fa-box"></i> ${r.name}</button><div class="muted" style="font-size:12px">${r.description || ''}</div>`;
+            ul.appendChild(li);
+        });
+        // Update three-dot menu badge if exists
+        const items = document.querySelectorAll('.repo-count');
+        items.forEach(b => b.textContent = repos.length.toString());
+    }
+
+    function renderRepoFiles(name, files) {
+        const title = document.getElementById('repoTitle');
+        const pane = document.getElementById('repoFiles');
+        if (title) title.textContent = `ملفات المستودع — ${name}`;
+        if (!pane) return;
+        pane.innerHTML = '';
+        const list = document.createElement('div');
+        files.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'file-row';
+            const icon = f.type === 'dir' ? 'fa-folder' : 'fa-file';
+            row.innerHTML = `<i class="fas ${icon}"></i> <a href="${f.html_url || f.download_url || '#'}" target="_blank" rel="noopener">${f.name}</a>`;
+            pane.appendChild(row);
+        });
+    }
+
+    async function loadMyServers() {
+        const repos = await fetchMyRepos();
+        renderRepoList(repos);
+        if (repos.length) {
+            const files = await fetchRepoContents(repos[0].name);
+            renderRepoFiles(repos[0].name, files);
+        }
+    }
+
+    document.getElementById('refreshMyRepos')?.addEventListener('click', loadMyServers);
+
+    document.getElementById('myRepos')?.addEventListener('click', async (e) => {
+        const btn = e.target.closest('button.linklike');
+        if (!btn) return;
+        const repo = btn.getAttribute('data-repo');
+        const files = await fetchRepoContents(repo);
+        renderRepoFiles(repo, files);
+    });
+
+    // Auto-load when switching to "سيرفراتي"
+    document.querySelector('[data-section="myservers"]')?.addEventListener('click', () => {
+        setTimeout(loadMyServers, 0);
+    });
 }
 
 navItems.forEach(item => {
@@ -413,8 +497,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Use backend API if available
         if (!ghToken) {
-            addConsoleLog('GitHub غير مربوط. الرجاء ربط GitHub أولاً.', 'error');
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> إنشاء'; }
+            addConsoleLog('GitHub غير مربوط. سيتم تحويلك لتسجيل الدخول...', 'warning');
+            const base = getBackendBase();
+            // إعادة التوجيه لتفويض OAuth بدون الحاجة لإدخال أي توكن يدوي
+            window.location.assign(`${base}/auth/github/login`);
             return;
         }
         if (!base) {

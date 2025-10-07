@@ -33,6 +33,18 @@ app.get('/auth/github/login', (req, res) => {
   if (!CLIENT_ID) {
     return res.status(500).send('Missing GITHUB_CLIENT_ID in environment');
   }
+
+function readTokenFromReq(req, bodyToken) {
+  if (bodyToken) return bodyToken;
+  // Authorization: Bearer <token>
+  const auth = req.headers['authorization'] || req.headers['Authorization'];
+  if (auth && /^Bearer\s+/i.test(auth)) return auth.replace(/^Bearer\s+/i, '').trim();
+  // Cookie: gh_token=...
+  const ck = req.headers['cookie'] || '';
+  const m = ck.match(/(?:^|;\s*)gh_token=([^;]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  return null;
+}
   const redirectUri = `${BASE_URL}/auth/github/callback`;
   const scope = 'repo';
   const url = new URL('https://github.com/login/oauth/authorize');
@@ -71,7 +83,20 @@ app.get('/auth/github/callback', async (req, res) => {
     }
 
     const token = tokenJson.access_token;
-    // Redirect back to dashboard with token in hash so it doesn't hit server logs
+    // Set HttpOnly cookie so frontend doesn't need to send token explicitly
+    try {
+      const isHttps = /^https:/i.test(BASE_URL);
+      const cookie = [
+        `gh_token=${encodeURIComponent(token)}`,
+        'Path=/',
+        'SameSite=Lax',
+        `Max-Age=${60 * 60 * 24 * 7}` // 7 days
+      ];
+      if (isHttps) cookie.push('Secure');
+      cookie.push('HttpOnly');
+      res.setHeader('Set-Cookie', cookie.join('; '));
+    } catch {}
+    // Also keep hash redirect for non-cookie flows
     res.redirect(`/dashboard.html#gh=${encodeURIComponent(token)}`);
   } catch (err) {
     res.status(500).send(`OAuth error: ${err.message}`);
@@ -155,8 +180,13 @@ async function downloadVanillaJar(version) {
   const manifest = await manRes.json();
   let targetId = version;
   if (!version || version === 'latest') targetId = manifest.latest.release;
-  const entry = manifest.versions.find(v => v.id === targetId);
-  if (!entry) throw new Error(`Version not found in Mojang manifest: ${version}`);
+  let entry = manifest.versions.find(v => v.id === targetId);
+  if (!entry) {
+    // Fallback to latest release
+    targetId = manifest.latest.release;
+    entry = manifest.versions.find(v => v.id === targetId);
+  }
+  if (!entry) throw new Error(`Version not found in Mojang manifest (requested: ${version})`);
   const vRes = await fetch(entry.url);
   if (!vRes.ok) throw new Error(`Failed to fetch version json: ${vRes.status}`);
   const vJson = await vRes.json();
@@ -188,8 +218,9 @@ async function downloadPaperJar(version) {
 // ===== API: create server repo with initial files =====
 app.post('/api/servers', async (req, res) => {
   try {
-    const { name, version = 'latest', software = 'Vanilla', token } = req.body || {};
-    if (!token) return res.status(400).json({ error: 'Missing token' });
+    const { name, version = 'latest', software = 'Vanilla' } = req.body || {};
+    const token = readTokenFromReq(req, req.body?.token);
+    if (!token) return res.status(401).json({ error: 'Missing token (login required)' });
     if (!name) return res.status(400).json({ error: 'Missing server name' });
 
     const user = await ghRequest('/user', { token });
@@ -244,9 +275,9 @@ app.post('/api/servers', async (req, res) => {
 // ===== API: start server (toggle START=true in .env) =====
 app.post('/api/servers/:name/start', async (req, res) => {
   try {
-    const { token } = req.body || {};
+    const token = readTokenFromReq(req, req.body?.token);
     const name = req.params.name;
-    if (!token) return res.status(400).json({ error: 'Missing token' });
+    if (!token) return res.status(401).json({ error: 'Missing token (login required)' });
     if (!name) return res.status(400).json({ error: 'Missing server name' });
     const user = await ghRequest('/user', { token });
     const owner = user.login;
@@ -276,9 +307,9 @@ app.post('/api/servers/:name/start', async (req, res) => {
 // ===== API: stop server (toggle START=false in .env) =====
 app.post('/api/servers/:name/stop', async (req, res) => {
   try {
-    const { token } = req.body || {};
+    const token = readTokenFromReq(req, req.body?.token);
     const name = req.params.name;
-    if (!token) return res.status(400).json({ error: 'Missing token' });
+    if (!token) return res.status(401).json({ error: 'Missing token (login required)' });
     if (!name) return res.status(400).json({ error: 'Missing server name' });
     const user = await ghRequest('/user', { token });
     const owner = user.login;
@@ -298,6 +329,43 @@ app.post('/api/servers/:name/stop', async (req, res) => {
 
     await putFile({ token, owner, repo, path: '.env', message: 'Stop server: set START=false', content: envContent });
     return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ===== API: list user's Minecraft server repos =====
+app.get('/api/my/repos', async (req, res) => {
+  try {
+    const token = readTokenFromReq(req);
+    if (!token) return res.status(401).json({ error: 'Missing token (login required)' });
+    const repos = await ghRequest('/user/repos?per_page=100', { token });
+    const mine = (repos || []).filter(r => (r.description || '').startsWith('Minecraft server '));
+    return res.json(mine.map(r => ({
+      name: r.name,
+      full_name: r.full_name,
+      private: r.private,
+      description: r.description,
+      updated_at: r.updated_at,
+      html_url: r.html_url
+    })));
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ===== API: list repo contents (root or a path) =====
+app.get('/api/repos/:name/contents', async (req, res) => {
+  try {
+    const token = readTokenFromReq(req);
+    if (!token) return res.status(401).json({ error: 'Missing token (login required)' });
+    const user = await ghRequest('/user', { token });
+    const owner = user.login;
+    const repo = req.params.name;
+    const pathQ = (req.query.path || '').toString().trim();
+    const pathPart = pathQ ? `/${encodeURIComponent(pathQ)}` : '';
+    const data = await ghRequest(`/repos/${owner}/${repo}/contents${pathPart}`, { token });
+    return res.json(data);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
